@@ -1,0 +1,94 @@
+CREATE TABLE Course(
+    id int AUTO_INCREMENT,
+    name char(50) NOT NULL UNIQUE,
+    description char(100) NOT NULL,
+    level char(50) NOT NULL,
+    dname char(50) NOT NULL,
+    PRIMARY KEY(id),
+    FOREIGN KEY(dname) REFERENCES Department(name)
+);
+
+CREATE TABLE Reference(
+    id int AUTO_INCREMENT,
+    name char(50) NOT NULL UNIQUE,
+    type char(50) NOT NULL,
+    link char(100),
+    description char(100),
+    PRIMARY KEY(id)
+);
+
+CREATE TABLE Department(
+    id int AUTO_INCREMENT,
+    name char(50) NOT NULL UNIQUE,
+    PRIMARY KEY(id)
+);
+
+CREATE TABLE Field(
+    id int AUTO_INCREMENT,
+    name char(50) NOT NULL UNIQUE,
+    PRIMARY KEY(id)
+);
+
+CREATE TABLE Mapping_Field_Department_Course(
+    id int AUTO_INCREMENT,
+    fid int NOT NULL,
+    did int NOT NULL,
+    cid int NOT NULL,
+    PRIMARY KEY(id),
+    FOREIGN KEY(fid) REFERENCES Field(id),
+    FOREIGN KEY(did) REFERENCES Department(id),
+    FOREIGN KEY(cid) REFERENCES Course(id)
+);
+
+CREATE TABLE Mapping_Course_Reference(
+    id int AUTO_INCREMENT,
+    cid int NOT NULL,
+    rid int NOT NULL,
+    PRIMARY KEY(id),
+    FOREIGN KEY(cid) REFERENCES Course(id),
+    FOREIGN KEY(rid) REFERENCES Reference(id)
+);
+
+CREATE TABLE User_Account(
+    id int AUTO_INCREMENT,
+    name char(50) NOT NULL UNIQUE,
+    passwd char(100) NOT NULL UNIQUE,
+    PRIMARY KEY(id)
+);
+
+CREATE TABLE Suggestion(
+    id int AUTO_INCREMENT,
+    uid int NOT NULL,
+    subject char(50) NOT NULL,
+    body varchar(500),
+    PRIMARY KEY(id),
+    FOREIGN KEY(uid) REFERENCES User_Account(id)
+);
+
+	新增刪除修改某系的課程
+INSERT INTO Course VALUES ("???","???","???","???"); 
+
+DELETE FROM Course WHERE id="???";
+
+UPDATE Course SET course_name="???" WHERE id="???";
+
+	新增刪除修改某課程的資源跟description 
+INSERT INTO Reference (reference) VALUES ("???"); 
+INSERT INTO Reference (description) VALUES ("???"); 
+
+DELETE FROM Reference WHERE reference="???";
+DELETE FROM Reference WHERE description="???";
+
+UPDATE Reference SET reference="???" WHERE id="???";
+UPDATE Reference SET description="???" WHERE id="???";
+
+	取得所有課程
+SELECT * FROM course;
+
+	取得某課程資料
+SELECT * FROM course WHERE name="???";
+
+	輸入”系”跟”領域”來取得課程
+
+
+	輸入”系”跟”領域”來新增刪除修改課程
