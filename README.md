@@ -1,2 +1,2 @@
-# CourseMapWithDocker
-make courseMap with docker
+# WOCCMpgWithDocker
+make woccmpg with docker
