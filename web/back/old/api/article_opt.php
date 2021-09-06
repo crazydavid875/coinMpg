@@ -1,9 +1,12 @@
 <?php
-function run($sql,$action,$id){
+function articlerun($sql,$action,$id){
     if($_SERVER['REQUEST_METHOD']=='POST'){
         switch ($action) {
             case '':
                 $response = addArticle($sql);
+                break;
+            case 'multi':
+                $response = addMultiArticles($sql);
                 break;
             default:
                 $response['code'] = 404;
@@ -69,6 +72,26 @@ function addArticle($sql){
 
     return $response;
     
+}
+function addMultiArticles($sql){
+    $json = file_get_contents('php://input');
+    $data = json_decode($json)->datas;
+    
+    
+    $response = array('code'=>'','value'=>'');
+
+    $member = GetUser();
+    $result = $sql->InsertMultiArticle($member,$data);
+    if(!$result){
+        $response['code'] = 400;
+        $response['value'] = $sql->GetMsg();
+    }
+    else{
+        $response['code'] = 200;
+        $response['value'] = $result->getId();
+    }
+
+    return $response;
 }
 //取得使用者論文
 function getArticles($sql){

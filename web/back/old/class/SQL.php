@@ -27,8 +27,8 @@ final class SQL{
     public function regist($name,$pwd,$email,$isVerify){
         $mysql = $this->mysql;
         $table ='user';
-        $queryStr = "INSERT INTO $table(`pwd`, `name`, `email`, `isVerify`) 
-        VALUES ('$pwd','$name','$email','$isVerify')";
+        $queryStr = "INSERT INTO $table(`pwd`, `name`, `email`, `isVerify`,permit) 
+        VALUES ('$pwd','$name','$email','$isVerify','0')";
         $member =null;
         
         $result = $mysql->query($queryStr);
@@ -99,11 +99,69 @@ final class SQL{
             }
             else{
                 //print_r($data)
-                $member = new Member($data['id'],$data['name'],$data['pwd'],$data['email'],$data['isVerify']);
+                $member = new Member($data['id'],$data['name'],$data['pwd'],$data['email'],$data['isVerify'],$data['premit']);
                 $this->msg = 'success';
             }
         }
         return $member;
+    }
+    public function SelectAllUser(){
+        $mysql = $this->mysql;
+        $this->msg = 'success';
+        $table ='user';
+        
+        $queryStr = "SELECT user.id,user.name,user.email,user.isVerify,record.ac 
+        as payarticleCount,record.amt as haspay,article.c as aricleCount  
+        FROM `user`  left OUTER JOIN 
+        (SELECT SUM(articleCount) as ac,SUM(amt) as amt,uid FROM paymentrecord WHERE paymentrecord.ispay=1 GROUP BY uid ) 
+        as record on record.uid = user.id 
+        LEFT JOIN (SELECT COUNT(id) as c,uid FROM article GROUP BY uid) 
+        as article on article.uid=user.id  WHERE permit<>1; ";
+        
+        
+        $result = $mysql->query($queryStr);
+        
+        if(!$result){
+            return $this->msg = $mysql->error;
+        }
+        else{
+            $data = [];
+            while($row = $result->fetch_assoc()){
+                array_push($data,$row);
+                $index++;
+            }
+            if($index == 0){
+                return $this->msg  = "account not found";
+            }
+            
+            return json_encode($data);
+        }
+        
+    }
+    public function UpdateUser($member,$name,$email){
+        $mysql = $this->mysql;
+        $this->msg ='';
+        $table ='user';
+        
+        $strarr = [];
+        if(isset($name))array_push($strarr,"`name`='$name'");
+        if(isset($email))array_push($strarr,"`email`='$email'");
+        $strarr = implode(',',$strarr);
+        $uid = $member->getId();
+        $queryStr = "UPDATE $table SET $strarr WHERE id='$uid' ";
+        $result = $mysql->query($queryStr);
+        
+        if(!$result){
+            $this->msg = $mysql->error;
+        }
+        elseif($mysql->affected_rows==0){
+            $this->msg = 'not thing change';
+        }
+        else{
+            $this->msg = 'success';
+            return true;
+        }
+        return false;
     }
     //article
     public function SelectArticles($member){
@@ -132,6 +190,27 @@ final class SQL{
         }
         return $member;
     }
+    public function SelectArticleCount($member){
+        $mysql = $this->mysql;
+        $this->msg ='';
+        $table ='article';
+        $uid = $member->getId();
+        $queryStr = "SELECT COUNT(*) as count FROM  $table WHERE uid = '$uid' ";
+        
+        $result = $mysql->query($queryStr);
+        
+        if(!$result){
+            $this->msg = $mysql->error;
+            return null;
+        }
+        else{
+            $index = 0;
+            $row = $result->fetch_assoc();
+            $this->msg = $row['count'];
+            
+        }
+        return $this->msg;
+    }
     public function InsertArticle($member,$title,$auth){
         $mysql = $this->mysql;
         $this->msg ='';
@@ -139,6 +218,33 @@ final class SQL{
         $uid = $member->getId();
         $queryStr = "INSERT INTO $table (`title`, `auth`, `uid`) 
         VALUES ('$title','$auth','$uid') ";
+        $result = $mysql->query($queryStr);
+        
+        if(!$result){
+            $this->msg = $mysql->error;
+        }
+        elseif($mysql->affected_rows==0){
+            $this->msg = 'not thing change';
+        }
+        else{
+            $article = new Article($mysql->insert_id,$title,$auth);
+            $member->addArticle($article);
+            $this->msg = 'success';
+        }
+        
+        return $article;
+    }
+    public function InsertMultiArticle($member,$data){
+        $mysql = $this->mysql;
+        $this->msg ='';
+        $table ='article';
+        $uid = $member->getId();
+        foreach($data as $item){
+            $datastr .=" ('$item->title','$item->auth','$uid'),";
+        }
+        $datastr = trim($datastr,',');
+        $queryStr = "INSERT INTO $table (title,auth,uid)    
+        VALUES $datastr ";
         $result = $mysql->query($queryStr);
         
         if(!$result){
@@ -226,13 +332,34 @@ final class SQL{
     }
 
     //pay record
+    public function SelectHasPayArticleCount($member){
+        $mysql = $this->mysql;
+        $this->msg ='';
+        $table ='paymentrecord';
+        $uid = $member->getId();
+        $queryStr = "SELECT SUM(articleCount) as haspay FROM $table  WHERE uid = '$uid' ";
+        
+        $result = $mysql->query($queryStr);
+        
+        if(!$result){
+            $this->msg = $mysql->error;
+            return null;
+        }
+        else{
+            $index = 0;
+            $row = $result->fetch_assoc();
+            $this->msg = $row['haspay'];
+            
+        }
+        return $this->msg;
+    }
     public function SelectPaymentRecords($member,$ispay = null){
         $mysql = $this->mysql;
         $this->msg ='';
         $table ='paymentrecord';
         $uid = $member->getId();
         
-        $queryStr = "SELECT * FROM $table WHERE uid = '$uid' ";
+        $queryStr = "SELECT *,CASE WHEN ispay = 1 THEN '已繳費' ELSE '未繳費' END as status FROM paymentrecord WHERE uid = '$uid' ";
         if($ispay!=null) $queryStr.=" and ispay='$ispay'";
         $records= [];
         
@@ -245,6 +372,7 @@ final class SQL{
         else{
             $index=0;
             while($row = $result->fetch_assoc()){
+                $row['time'] =date('Y-m-d H:i:s',$row['timestamp']);
                 array_push($records,$row);
                 $index++;
             }
@@ -253,15 +381,15 @@ final class SQL{
         }
         return $records;
     }
-    public function InsertPayRecord($member,$paymode,$amt){
+    public function InsertPayRecord($member,$paymode,$amt,$content,$count){
         $mysql = $this->mysql;
         $this->msg ='';
         $table ='paymentrecord';
         $uid = $member->getId();
         $insertid = -1;
         $currtime = time();
-        $queryStr = "INSERT INTO $table (`timestamp`, pid,`uid`,amt) 
-        VALUES ('$currtime','$paymode','$uid','$amt') ";
+        $queryStr = "INSERT INTO $table (`timestamp`, pid,`uid`,amt,content,articleCount) 
+        VALUES ('$currtime','$paymode','$uid','$amt','$content','$count') ";
         $result = $mysql->query($queryStr);
         
         if(!$result){
@@ -283,7 +411,27 @@ final class SQL{
         $this->msg ='';
         $table ='paymentrecord';
         
-        $queryStr = "UPDATE $table SET ispay='$state' WHERE id='$id' amt='$amt' ";
+        $queryStr = "UPDATE $table SET ispay='$stat' WHERE id='$id' and amt='$amt' ";
+        $result = $mysql->query($queryStr);
+        
+        if(!$result){
+            $this->msg = $mysql->error;
+        }
+        elseif($mysql->affected_rows==0){
+            $this->msg = 'not thing change';
+        }
+        else{
+            $this->msg = 'success';
+        }
+        return $this->msg;
+    }
+    public function DeleteUnPay($member)
+    {
+        $mysql = $this->mysql;
+        $this->msg ='';
+        $table ='paymentrecord';
+        $uid = $member->getId();
+        $queryStr = "DELETE FROM `paymentrecord`  WHERE uid='$uid' and ispay='-1' ";
         $result = $mysql->query($queryStr);
         
         if(!$result){

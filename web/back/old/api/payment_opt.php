@@ -1,10 +1,16 @@
 <?php
-function run($sql,$action){
+function payrun($sql,$action){
     //$_SESSION['userID'] = isset($_SESSION['userID'])?$_SESSION['userID']:-1;
     if($_SERVER['REQUEST_METHOD']=='POST'){
         switch ($action) {
-            case 'payRecord':
-                $response = payRecordAdd($sql);
+            case 'refreashRecord':
+                $response = refreashRecord($sql);
+                break;
+            case 'addPayRecord':
+                $response = addPayRecord($sql);
+                break;
+            case 'getMPGRecord':
+                $response = getMPGRecord($sql);
                 break;
             case 'payNotify':
                 $response = payNotify($sql);
@@ -59,45 +65,19 @@ function GetpayAmt($sql){
     }
     return $response;
 }
-
-function payRecordAdd($sql){
-    //加密+回傳資料
-    
+function getMPGRecord($sql){
+    $json = file_get_contents('php://input');
+    $data = json_decode($json);
+    $paytype = $data->paytype;
     $member = GetUser();
-    $member = $sql->SelectArticles($member);
-    $articles = $member->getArticles();
-    $articleCount = $sql->GetMsg();
     $records = $sql->SelectPaymentRecords($member);
     $recordsCount = $sql->GetMsg();
     $ItemName = '';
-    if($recordsCount<=0 && $articleCount<=0 ){
-        $ItemName = "沒有論文";
-        $paymode = $sql->SelectPayMode($ItemName);
-        $orderId = $sql->InsertPayRecord($member,$paymode['id'],$paymode['amt']);
-        if($orderId==-1){
-            $response['code'] = 400;
-            $response['value'] = $sql->GetMsg();
-            return $response;
-        }
-        $amt = $paymode['amt'];
-    }
-    else if($recordsCount<=0 && $articleCount==1){
-        $ItemName = "有論文";
-        $paymode = $sql->SelectPayMode($ItemName);
-        
-        $orderId = $sql->InsertPayRecord($member,$paymode['id'],$paymode['amt']);
-        if($orderId==-1){
-            $response['code'] = 400;
-            $response['value'] = $sql->GetMsg();
-            return $response;
-        }
-        $sql->SetArticleInPayRecord($member,$articles[0]->GetId(),$orderId);
-        $amt = $paymode['amt'];
-    }
-    else if($recordsCount>0){
+    if($recordsCount>0){
         $orderId = $records[0]['id'];
-        $ItemName = "有論文";
+        $ItemName = $records[0]['content'];
         $amt = $records[0]['amt'];
+        
     }
     else{
 
@@ -108,25 +88,83 @@ function payRecordAdd($sql){
     //$orderId = $_POST['orderId'];
     
     $response['code'] = 200;
-    $response['value'] = MPG::mpg_encrypt($member,$orderId,$ItemName,$amt);
+    $response['value'] = MPG::mpg_encrypt($member,$orderId,$ItemName,$amt,$paytype);
     
     return $response;
 }
+function addPayRecord($sql){
+    $member = GetUser();
+    $articleCount = $sql->SelectArticleCount($member);
+    $hasPayarticleCount = $sql->SelectHasPayArticleCount($member);
+    $ItemName = '';
+    if($hasPayarticleCount<=0 && $articleCount<=0 ){
+        $ItemName = "沒有論文";
+        $paymode = $sql->SelectPayMode($ItemName);
+        $orderId = $sql->InsertPayRecord($member,$paymode['id'],$paymode['amt'],$ItemName,0);
+        if($orderId==-1){
+            $response['code'] = 400;
+            $response['value'] = $sql->GetMsg();
+            return $response;
+        }
+        $amt = $paymode['amt'];
+    }
+    else if($articleCount - $hasPayarticleCount>0){
+        $topaycount = ($articleCount - $hasPayarticleCount);
+        $ItemName = $topaycount."篇論文";
+        $paymode = $sql->SelectPayMode("有論文");
+        $totalpay = $paymode['amt']*$topaycount;
+        $orderId = $sql->InsertPayRecord($member,$paymode['id'], $totalpay,$ItemName,$topaycount);
+        if($orderId==-1){
+            $response['code'] = 400;
+            $response['value'] = $sql->GetMsg();
+            return $response;
+        }
+        //$sql->SetArticleInPayRecord($member,$articles[0]->GetId(),$orderId);
+        $amt = $totalpay;
+    }
+    else{
+        $response['code'] = 400;
+        $response['value'] = 'nothing to pay';
+        return $response;
+    }
+    $response['code'] = 200;
+    $response['value'] = 'success';
+    return $response;
+}
+function refreashRecord($sql){
+    $member = GetUser();
+    $sql->DeleteUnPay($member);
+    return addPayRecord($sql);
+    
+}
 function payNotify($sql){
     //接收api之街口
-    $json = file_get_contents('php://input');
-    $data = json_decode($json);
-    $deTradeInfo = $data->TradeInfo;
-    $info = MPG::mpg_decrypt($deTradeInfo);
-    $jsoninfo = json_decode($info);
+
+    $data = $_POST;
+    $deTradeInfo = $data['TradeInfo'];
+
+    $jsoninfo = json_decode(MPG::mpg_decrypt($deTradeInfo));
+    
+    
     $jsonResult = $jsoninfo->Result;
     $oid = $jsonResult->MerchantOrderNo;
     $amt = $jsonResult->Amt;
     $stat = $jsoninfo->Status=='SUCCESS'?1:0;
-    $sql->UpdatePayment($oid,$amt,$stat);
+    
+    $msg = $sql->UpdatePayment($oid,$amt,$stat);
+    if($msg=='success')$response['code'] = 200;
+    else $response['code'] = 400;
+    $response['value'] =$msg;
+    return $response;
 }
 function getPayRecord($sql){
     //顯示付款資訊
+    $member = GetUser();
+    $records = $sql->SelectPaymentRecords($member);
+    $recordsCount = $sql->GetMsg();
+    $response['value'] = json_encode($records);
+    $response['code'] = 200;
+    return $response;
 }
 function GetPDFPayRecord($sql){
    //pdf

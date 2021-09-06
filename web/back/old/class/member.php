@@ -7,14 +7,17 @@ class Member{
     private $email;
     private $isVerify;
     private $articles = [];
-
-    public function __construct($id,$name,$pwd,$email,$isVerify){
+    private $permit ;
+    public function __construct($id,$name,$pwd,$email,$isVerify,$permit=0){
         $this->id = $id;
         $this->name = $name;
         $this->pwd = $pwd;
         $this->email = $email;
         $this->isVerify = $isVerify;
-    
+        $this->permi = $permit;
+    }
+    public function getPermit(){
+        return $this->permit;
     }
     public function getId(){
         return $this->id;

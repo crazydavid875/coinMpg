@@ -4,8 +4,9 @@ class Mpg{
     static private $mer_iv ='CwDIMI2Q4yZuRBxP'; //'PMmpEqHeomOCe7JC';
     static private $MerchantID = 'MS122480020';//'MS3515109187';
     
-    static function mpg_encrypt($member,$orderId,$ItemName,$amt){
+    static function mpg_encrypt($email,$orderId,$ItemName,$amt,$paytype){
         $MerchantID = MPG::$MerchantID;
+        
         $trade_info_arr = array(
             'MerchantID' => $MerchantID,
             'RespondType' => 'JSON',
@@ -14,11 +15,19 @@ class Mpg{
             'MerchantOrderNo' => $orderId,
             'Amt' => $amt,
             'ItemDesc' => $ItemName,
-            'Email' => $member->getEmail(),
-            'ReturnURL'=>'https://140.124.181.72/front/index.html',
-            'ClientBackURL'=>'https://140.124.181.72/front/index.html',
-            'NotifyURL'=>'https://140.124.181.72/back/payment/payNotify'
+            'Email' => $email,
+            'ReturnURL'=>'https://acl.csie.ntut.edu.tw/wocc/front/MemberPage/1/profile',
+            'ClientBackURL'=>'https://acl.csie.ntut.edu.tw/wocc/front/MemberPage/1/profile',
+            'NotifyURL'=>'https://acl.csie.ntut.edu.tw/back/payment/payNotify',
+            'LangType'=>'en',
+            'CREDIT'=>1,
+            'VACC'=>1,
+            'CVS'=>1,
+            'BARCODE'=>1,
+            'WEBATM'=>1
         );
+        
+         
         $aes = MPG::create_mpg_aes_encrypt ($trade_info_arr, Mpg::$mer_key, Mpg::$mer_iv);
         $hash = 'HashKey='.Mpg::$mer_key.'&'.$aes.'&HashIV='.Mpg::$mer_iv;
         $sha = strtoupper(hash("sha256", $hash));
@@ -46,7 +55,16 @@ class Mpg{
         return $string;
     }
     static function mpg_decrypt($deTradeInfo){
-        $deinfo = create_aes_decrypt($deTradeInfo,MPG::$mer_key,MPG::$mer_iv);
+        $deinfo = MPG::create_aes_decrypt($deTradeInfo,MPG::$mer_key,MPG::$mer_iv);
+        
+        //print_r($deinfo);
+        //$arr =  explode("&",$deinfo);
+        //$res = [];
+        //foreach($arr as $item){
+        //    $deitem = explode("=",$item);
+        //    $res[$deitem[0]] = $deitem[1];
+        //}
+        
         return $deinfo;
     }
     static function create_aes_decrypt($parameter = "", $key = "", $iv = "") {

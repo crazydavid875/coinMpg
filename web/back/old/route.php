@@ -8,17 +8,21 @@ session_start();
 if($service=='account'){
     require_once('./api/member_opt.php');
     
-    run($sql,$action);
+    memrun($sql,$action);
 }
 else if($service=='payment'){
     require_once('./api/payment_opt.php');
-    run($sql,$action);
+    payrun($sql,$action);
 }
 else if($service=='article'){
     require_once('./api/article_opt.php');
-    run($sql,$action,$perms[4]);
+    articlerun($sql,$action,$perms[4]);
 }
-
+else if($service=='admin'){
+    require_once('./api/admin_opt.php');
+    adminrun($sql,$action,$perms[4]);
+}
+    
 function GetUser(){
     global $sql;
     $member = null;

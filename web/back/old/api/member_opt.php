@@ -1,6 +1,6 @@
 <?php 
 //todo email驗證流程
-function run($sql,$action){
+function memrun($sql,$action){
     $_SESSION['userID'] = isset($_SESSION['userID'])?$_SESSION['userID']:-1;
     $_SESSION['verifyCode'] = isset($_SESSION['verifyCode'])?$_SESSION['verifyCode']:null;
     if($_SERVER['REQUEST_METHOD']=='POST'){
@@ -37,6 +37,17 @@ function run($sql,$action){
                 break;
         }
     }
+    else if($_SERVER['REQUEST_METHOD']=='PATCH'){
+        switch ($action) {
+            case '':
+                $response = updateInfo($sql);
+                break;
+            default:
+                $response['code'] = 404;
+                $response['value'] = 'action not found';
+                break;
+        }
+    }
     http_response_code($response['code']);
     echo $response['value'];
 }
@@ -57,8 +68,23 @@ function regist($sql){
         $_SESSION['userID'] = $result->getId();
         $response['code'] = 200;
         $response['value'] = $result->getId();
+        addEmptyPayRecord($sql);
     }
 
+    return $response;
+}
+function addEmptyPayRecord($sql){
+    $member = GetUser();
+    $ItemName = "沒有論文";
+    $paymode = $sql->SelectPayMode($ItemName);
+    $orderId = $sql->InsertPayRecord($member,$paymode['id'],$paymode['amt'],$ItemName,0);
+    if($orderId==-1){
+        $response['code'] = 400;
+        $response['value'] = $sql->GetMsg();
+        return $response;
+    }
+    $response['code'] = 200;
+    $response['value'] = 'success';
     return $response;
 }
 function login($sql){
@@ -100,7 +126,7 @@ function getHash(){
 }
 function getInfo($sql){
     $member = GetUser();
-    $member->getName();
+
     $state = ['未繳款','尚未繳清','已繳清'];
     $ispayStr = '';
     $member = $sql->SelectArticles($member);
@@ -126,4 +152,21 @@ function getInfo($sql){
     ));
     $response['code'] = 200;
     return $response;
+}
+function updateInfo($sql){
+    $json = file_get_contents('php://input');
+    $data = json_decode($json);
+    $member = GetUser();
+
+    $bool = $sql->UpdateUser($member,$data->name,$data->email);
+    if($bool)
+    {
+        $response['code'] =200; 
+    }
+    else {
+        $response['code'] = 400;
+    }
+    $response['value'] = $sql->GetMsg();
+    return $response;
+
 }

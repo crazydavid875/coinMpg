@@ -1,9 +1,4 @@
 version: "3"
-
-networks:
-  mynet:
-    external: true
-
 services:
      web:
        restart: unless-stopped
@@ -11,10 +6,8 @@ services:
             context: ./
             dockerfile: nginx-web
        container_name: nginx
-       networks:
-         - mynet
        volumes:
-         - ./web/front:/var/www/html/member/front
+         - ./web/front:/var/www/html/wocc/front
          - ./web/itsa:/var/www/html/itsa
        ports:
          - 80:80
@@ -27,10 +20,8 @@ services:
             dockerfile: php74
        container_name: php74
        restart: unless-stopped
-       networks:
-         - mynet
        volumes:
-         - ./web/back:/var/www/html/member/back
+         - ./web/back:/var/www/html/wocc/back
          - ./web/coursemap:/var/www/html/coursemap
        links:
          - "db:mysql"
@@ -42,8 +33,6 @@ services:
             dockerfile: mysql-file
        container_name: db
        restart: unless-stopped
-       networks:
-         - mynet
        command: --default-authentication-plugin=mysql_native_password
        volumes:
          - ./mysql-data:/var/lib/mysql
@@ -57,8 +46,6 @@ services:
          - "8080:80"
        depends_on:
          - db
-       networks:
-         - mynet
        environment:
          PMA_HOST: db
          PMA_PORT: 3306
