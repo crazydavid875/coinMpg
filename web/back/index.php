@@ -6,6 +6,10 @@
     
     //include_once('./class/SQL.php');
     //include_once('./route.php');
+    
+    include($_SERVER['DOCUMENT_ROOT']."/TCPDF/tcpdf.php");
+    
+    
     foreach (glob("base/*.php") as $filename)
     {
         include_once($filename);

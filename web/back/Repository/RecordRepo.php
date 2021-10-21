@@ -5,9 +5,11 @@ class RecordRepo{
     public function __construct(){
 
     }
-    public function findAll($uid){
+    public function findAll($uid,$haspay=false){
+        $haspaystatment = '';
+        if($haspay) $haspaystatment = " and paytime<>''";
         $table = $this->table;
-        $isSuccess = SQL::Select("SELECT * FROM $table WHERE uid='$uid'");
+        $isSuccess = SQL::Select("SELECT * FROM $table WHERE uid='$uid' $haspaystatment");
         if($isSuccess==-1){
             Output::Error(SQL::getMsg());
         }
@@ -41,7 +43,7 @@ class RecordRepo{
         $createtime = $record->createtime; 
         $des = $record->des;              
         $receiptitle = $record->receiptitle;         
-        $id =  $record->createtime;
+        
         $table = $this->table;
         $query = "INSERT INTO $table
         ( `createtime`, `uid`, `des`, `receiptitle`) 

@@ -18,12 +18,14 @@ class PayItemRepo{
         else{
             $result = SQL::getResult();
             $payitems = [];
+            
             foreach($result as $payitem){
                 array_push($payitems,new PayItem($payitem));
             }
             return $payitems;
         }
     }
+    
     public function find($id){
         $table = $this->table;
         $isSuccess = SQL::Select("SELECT item.*,paymode.name as paymode,paymode.amt as amt,
@@ -91,10 +93,10 @@ class PayItemRepo{
         $set = '';
         if($hasArticle)$hasArticleName = 'has article';
         else $hasArticleName = 'without article';
-        echo $query = "UPDATE $table SET pid=(
+        $query = "UPDATE $table SET pid=(
             select id from paymode where name='$hasArticleName' 
             and indentid=(select id from indentify where name='$indent')) WHERE rid='$rid' and 
-            pid<>(select id from paymode where name='extra page')";
+            pid not in (select id from paymode where name='extra page' or name='has paid base') ";
         
         $isSuccess = SQL::Update($query);
         if($isSuccess==-1){
@@ -115,6 +117,25 @@ class PayItemRepo{
         }
         else{
             return SQL::getResult();
+        }
+    }
+    public function findByArticle($aid){
+        $table = $this->table;
+        $isSuccess = SQL::Select("SELECT item.*,paymode.name as paymode,paymode.amt as amt,
+        ind.name as indent ,paymode.name as paymode
+        FROM $table as item JOIN paymode on paymode.id=item.pid
+        left JOIN indentify as ind on ind.id=paymode.indentid WHERE aid='$aid'");
+        if($isSuccess==-1){
+            Output::Error(SQL::getMsg());
+        }
+        else{
+            $result = SQL::getResult();
+            $payitems = [];
+            
+            foreach($result as $payitem){
+                array_push($payitems,new PayItem($payitem));
+            }
+            return $payitems;
         }
     }
 }

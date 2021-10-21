@@ -23,6 +23,7 @@ class PaymenyController{
         $member = $memberRepo->find($uid);
         $email = $member->email;
         $record = $this->recordRepo->find($id);
+        $this->recordRepo->update($id,array("receiptitle"=>$data["receipt"]));
         $payitemRepo = new PayItemRepo();
         $record->items = $payitemRepo->findAll($record->id);
         
@@ -50,6 +51,7 @@ class PaymenyController{
         
         
         foreach($records as $record){
+            
             if(!$record->getIspay()){
                 $payItems = $payItemRepo->findAll($record->id);
                 foreach($payItems as $payitem){
@@ -58,7 +60,12 @@ class PaymenyController{
                 $recordRepo->delete($record->id);
             }
         }
-        
+    
+        $newitems =  $payItemRepo->findAll($insertid);
+        if(count($newitems)<=0){
+            $recordRepo->delete($insertid);
+            Output::Error('you have nothing to pay');
+        }
         Output::Success('{"id":"'.$insertid.'"}');
         
     }
@@ -68,8 +75,8 @@ class PaymenyController{
         $data = Input::getPostData();
         $memberRepo =  new MemberRepo();
         $deTradeInfo = $data['TradeInfo'];
-        
-        $jsoninfo = json_decode(MPG::mpg_decrypt($deTradeInfo));
+        $jsoninfo = json_decode($deTradeInfo);
+        //$jsoninfo = json_decode(MPG::mpg_decrypt($deTradeInfo));
         //print_r($jsoninfo);
         //$myfile = fopen("log".time().".txt", "w");
         //$txt = json_encode($data)."\n\n";
@@ -108,9 +115,10 @@ class PaymenyController{
                     'content' => $postdata
                 )
             );
-            $context = stream_context_create($opts);
-            $result = file_get_contents('https://script.google.com/macros/s/AKfycbyktp1CtC_NT6NNegZTDuA0AuVrvswTcZIU_Yj25RcnBKsCxt-3a8X-qrmnVnfPS59V/exec', false, $context);
-            Output::Success($result);
+            //$context = stream_context_create($opts);
+            //$result = file_get_contents('https://script.google.com/macros/s/AKfycbyktp1CtC_NT6NNegZTDuA0AuVrvswTcZIU_Yj25RcnBKsCxt-3a8X-qrmnVnfPS59V/exec', false, $context);
+            return $member->id;
+            //Output::Success($result);
         }
         else{
             Output::Error();
@@ -135,9 +143,6 @@ class PaymenyController{
         $paytime = time();
         $this->recordRepo->update($id,array('paytime'=>$paytime));
         Output::Success();
-    }
-    function GetPDFPayRecord($sql){
-       //pdf
     }
     
     

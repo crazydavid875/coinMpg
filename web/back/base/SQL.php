@@ -19,7 +19,7 @@ class SQL{
     }
     public static function Select($query){
         $mysql = SQL::$mysql;
-        //echo $query;
+        //echo $query.'\r\n\n';
         $result = $mysql->query($query);
         if(!$result){
             SQL::$msg = $mysql->error;

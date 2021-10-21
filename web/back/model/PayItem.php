@@ -8,7 +8,11 @@ class PayItem{
     public $total = 0;
     public $indent='';
     public $paymode='';
-    public static $columns = ['page','rid'];
+    public $receiptid='';
+    public $receipt='';
+    public $article;
+    public $aid;
+    public static $columns = ['page','rid','receiptid'];
 
     public function __construct($data){
         if(isset($data['id'])){
@@ -25,6 +29,12 @@ class PayItem{
         }
         if(isset($data['paymode'])){
             $this->paymode = $data['paymode'];
+        }
+        if(isset($data['receiptid'])){
+            $this->receiptid = $data['receiptid'];
+        }
+        if(isset($data['aid'])){
+            $this->aid = $data['aid'];
         }
         $this->total = $this->amt*$this->page;
     }

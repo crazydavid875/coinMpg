@@ -19,25 +19,48 @@ class ArticleController{
         $member = $memberBuilder->Build($uid);
         $where = false;
         $records = $member->paymentRecords;
+
+        $hasPaid=false;
+        $hasPaidhasPaid = false;
         foreach($records as $record){
             if(!$record->getIspay()){
-                foreach($record->items as $payitem){
-                    
-                    if($payitem->paymode=="without article"){
+                if(count($record->items)<=0){
+                    //$recordRepo->delete($record->id);
+                }
+                else{
+                    foreach($record->items as $payitem){
                         
-                        $recordRepo->delete($record->id);
+                        if($payitem->paymode=="without article"){
+                            
+                            $recordRepo->delete($record->id);
+                        }
+                        else if($payitem->paymode=='has paid base'){
+                            $hasPaidhasPaid = true;
+                        }
+                    }
+                }
+            }
+            else{
+                foreach($record->items as $payitem){
+                    if($payitem->paymode=="without article"){
+                        $payIndent = $payitem->indent;
+                        $hasPaid = true;
+                    }
+                    else if($payitem->paymode=='has paid base'){
+                        
+                        $hasPaidhasPaid = true;
                     }
                 }
             }
         }
         //new a record and item
         
-        $des = $article->title.",".($member->isieee?'ieee member':'non ieee member');
+        $des = $article->paperid.", ".($member->isieee?'ieee member':'non ieee member');
         $newRecord = new Record(array('createtime'=>time(),'des'=>$des));
         $recordid = $recordRepo->insert($uid,$newRecord);
         $payitem = new PayItem(array(
             'paymode'=>"has article",
-            'indent'=>$member->indent,
+            'indent'=>($member->isieee?'ieee member':'non ieee member'),
             'page'=>1
         ));
         $payItemRepo->insert($recordid,$payitem,$insertid);
@@ -52,7 +75,18 @@ class ArticleController{
             $payItemRepo->insert($recordid,$payitem,$insertid);
         }
 
-        
+        //has paid discount
+
+        if($hasPaid&&!$hasPaidhasPaid&&isset($payIndent)){
+            
+            $payitem = new PayItem(array(
+                'paymode'=>"has paid base",
+                'indent'=>$payIndent,
+                'page'=>1
+            ));
+            $payItemRepo->insert($recordid,$payitem);
+        }
+
         Output::Success('{"id":"'.$insertid.'"}');
         
     }
@@ -70,7 +104,7 @@ class ArticleController{
         $article = $this->articleRepo->find($id);
         //print_r( $article);
         if($data['pagecount']!=$article->pagecount){
-            $this->DeleteArticle($id);
+            $this->DeleteArticle($id,true);
             $this->addArticle();
         } 
         else{//    Output::Error('Could not change pages while you has already paid for the paper ');
@@ -79,37 +113,84 @@ class ArticleController{
         Output::Success();
     }
     //刪除論文
-    public function DeleteArticle($id){
+    public function DeleteArticle($id,$withoutexit = false){
         $data = Input::getJsonData();
         $uid = Input::getSession("USERID");
         $article = $this->articleRepo->find($id);
         $this->articleRepo->delete($id);
         $articles = $this->articleRepo->findAll($uid);
-        if(count($articles)<=0){
-            $memberRepo = new MemberRepo();
-            $recordRepo = new RecordRepo();
-            $payItemRepo = new PayItemRepo();
-            $member = $memberRepo->find($uid);
-            $records = $recordRepo->findAll($uid);
+       
+        $memberRepo = new MemberRepo();
+        $recordRepo = new RecordRepo();
+        $payItemRepo = new PayItemRepo();
+        
+
+        $member = $memberRepo->find($uid);
+        $records = $recordRepo->findAll($uid);
+        if(count($articles)<=0){    
             $haspaid = false;
             foreach($records as $record){
-                if(!$record->getIspay())
+                if(!$record->getIspay()){
+                    
                     $recordRepo->delete($record->id);
+                    
+                }
                 else
                     $haspaid = true;
             }
-            if($haspaid) Output::Success();
-            $newRecord = new Record(array('createtime'=>time(),'des'=>'non author,'.($member->isstudent=='student'?'student':'non student')));
+            if($haspaid) {
+                if($withoutexit)
+                    Output::SuccessWithoutExit();
+                else{
+                    Output::Success();
+                }
+            }
+            //if there have no record,add a empty record for non author
+            $newRecord = new Record(array('createtime'=>time(),'des'=>'non author, '.($member->isstudent=='student'?'student':'non student')));
             
             $insertid = $recordRepo->insert($uid,$newRecord);
             $item = new PayItem(array(
                 'paymode'=>"without article",
-                'indent'=>$member->indent,
+                'indent'=>($member->isstudent=='student'?'student':'non ieee member'),
                 'page'=>1
             ));
             
             $payItemRepo->insert($insertid,$item);
         }
-        Output::SuccessWithoutExit();
+        else{
+            
+            
+            foreach($records as $record){
+                
+                if(!$record->getIspay())
+                { 
+                    
+                    $items = $payItemRepo->findAll($record->id);
+                    $itemcount = count($items);
+                    
+                    if($itemcount<=0)
+                        $recordRepo->delete($record->id);
+                    else{
+                        $record->items = $items;
+                        
+                        if($record->getTotal()<0){
+                            $toBeStoreitem = $record->items[0];
+                            $recordRepo->delete($record->id);
+                        }
+                        else{
+                            $rid = $record->id;
+                        }
+                    }
+                }
+            }
+            if(isset($rid)&&isset($toBeStoreitem)){
+                $payItemRepo->insert($rid,$toBeStoreitem);
+            }
+        }
+        if($withoutexit)
+            Output::SuccessWithoutExit();
+        else{
+            Output::Success();
+        }
     }
 }

@@ -24,7 +24,9 @@ class Mpg{
             'VACC'=>1,
             'CVS'=>1,
             'BARCODE'=>1,
-            'WEBATM'=>1
+            'WEBATM'=>1,
+            'CREDITAE'=>1,
+            'UNIONPAY'=>1
         );
         
          
